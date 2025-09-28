@@ -1,0 +1,49 @@
+{
+  "name": "auth-market",
+  "version": "1.0.0",
+  "description": "Toouk market place where things are being tokanized",
+  "keywords": [
+    "toouk",
+    "crypto",
+    "market",
+    "place"
+  ],
+  "license": "ISC",
+  "author": "Zaman Ehsani",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "seed": "npx prisma db seed",
+    "test": "jest",
+    "test:js": "jest src/__tests__/*.js",
+    "test:ts": "jest src/__tests__/*.ts",
+    "test:watch": "jest --watch"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.896.0",
+    "@prisma/client": "^6.16.2",
+    "@types/amqplib": "^0.10.7",
+    "@types/cors": "^2.8.19",
+    "@types/mocha": "^10.0.10",
+    "@types/multer": "^2.0.0",
+    "amqplib": "^0.10.9",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "jest": "^30.2.0",
+    "multer": "^2.0.2"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/express": "^5.0.3",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.17",
+    "prisma": "^6.16.2",
+    "ts-node": "^10.9.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}

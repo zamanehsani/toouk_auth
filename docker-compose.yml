@@ -1,0 +1,48 @@
+services:
+  # Users Service
+  auth-service:
+    build: .
+    container_name: auth-service
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env.production
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - auth-network
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # PostgreSQL Database for Auth
+  auth-db:
+    image: postgres:15-alpine
+    container_name: auth-db
+    env_file:
+      - .env.production
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - auth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_admin -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+
+networks:
+  auth-network:
+    driver: bridge
+    name: auth-network
+
+volumes:
+  auth_db_data:
+    name: auth_db_data
