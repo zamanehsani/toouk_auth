@@ -4,59 +4,73 @@ import config from '../config';
 let channel: Channel | null = null;
 let connection: Connection | null = null;
 
-export async function connectRabbitMQ(): Promise<Channel> {
+export async function connectRabbitMQ(retries = 5, delay = 5000): Promise<Channel> {
   if (channel) return channel;
 
-  try {
-    // Use config for RabbitMQ URL
-    const rabbitmqUrl = config.rabbitmqUrl;
-    
-    console.log(`🔗 Connecting to RabbitMQ at: ${rabbitmqUrl.replace(/\/\/.*@/, '//***:***@')}`);
-    
-    // Connect using callback API with promisify
-    connection = await new Promise<Connection>((resolve, reject) => {
-      amqp.connect(rabbitmqUrl, (error0, connection) => {
-        if (error0) {
-          reject(error0);
-          return;
-        }
-        resolve(connection);
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // Use config for RabbitMQ URL
+      const rabbitmqUrl = config.rabbitmqUrl;
+      
+      console.log(`🔗 Connecting to RabbitMQ at: ${rabbitmqUrl.replace(/\/\/.*@/, '//***:***@')} (attempt ${attempt}/${retries})`);
+      
+      // Connect using callback API with promisify
+      connection = await new Promise<Connection>((resolve, reject) => {
+        amqp.connect(rabbitmqUrl, (error0, connection) => {
+          if (error0) {
+            reject(error0);
+            return;
+          }
+          resolve(connection);
+        });
       });
-    });
-    
-    // Create channel
-    channel = await new Promise<Channel>((resolve, reject) => {
-      connection!.createChannel((error1, channel) => {
-        if (error1) {
-          reject(error1);
-          return;
-        }
-        resolve(channel);
+      
+      // Create channel
+      channel = await new Promise<Channel>((resolve, reject) => {
+        connection!.createChannel((error1, channel) => {
+          if (error1) {
+            reject(error1);
+            return;
+          }
+          resolve(channel);
+        });
       });
-    });
-    
-    console.log("✅ Connected to RabbitMQ");
-    
-    // Handle connection events
-    connection.on('close', (err) => {
-      console.warn('⚠️ RabbitMQ connection closed', err ? err.message : '');
-      channel = null;
-      connection = null;
-    });
-    
-    connection.on('error', (err) => {
-      console.error('❌ RabbitMQ connection error:', err.message);
-      channel = null;
-      connection = null;
-    });
-    
-    return channel;
-  } catch (error) {
-    console.error('❌ Failed to connect to RabbitMQ:', error);
-    channel = null;
-    connection = null;
-    throw error;
+
+      console.log("✅ Connected to RabbitMQ");
+      
+      // Handle connection events
+      connection.on('close', (err) => {
+        console.warn('⚠️ RabbitMQ connection closed', err ? err.message : '');
+        channel = null;
+        connection = null;
+      });
+
+      connection.on('error', (err) => {
+        console.error('❌ RabbitMQ connection error:', err.message);
+        channel = null;
+        connection = null;
+      });
+
+      return channel;
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`❌ Failed to connect to RabbitMQ (attempt ${attempt}/${retries}):`, error);
+      
+      if (attempt === retries) {
+        console.error('❌ All RabbitMQ connection attempts failed');
+        channel = null;
+        connection = null;
+        throw lastError;
+      }
+      
+      console.log(`⏳ Retrying RabbitMQ connection in ${delay/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
   }
+
+  throw lastError || new Error('Failed to connect to RabbitMQ after all retries');
 }
 
 export async function publishEvent(queue: string, message: any) {
